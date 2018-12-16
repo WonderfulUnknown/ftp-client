@@ -28,9 +28,10 @@ void MySocket::OnConnect(int nErrorCode)
 	if (nErrorCode == 0)
 	{
 		if_connect = TRUE;
-		//触发FD_READ事件，调用OnReceive函数
-		AsyncSelect(FD_READ);
+		AfxMessageBox(L"连接FTP服务器成功！", MB_ICONINFORMATION);
 	}
+	else
+		if_connect = FALSE;
 	CAsyncSocket::OnConnect(nErrorCode);
 }
 

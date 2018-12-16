@@ -8,6 +8,7 @@
 #include "afxdialogex.h"
 #include <afxinet.h>
 #include "MySocket.h"
+#include <atlconv.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -79,6 +80,7 @@ BEGIN_MESSAGE_MAP(Cftp_clientDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_Connect, &Cftp_clientDlg::OnBnClickedConnect)
 	//ON_BN_CLICKED(IDC_DownLoad, &Cftp_clientDlg::OnBnClickedDownload)
 	//ON_BN_CLICKED(IDC_UpLoad, &Cftp_clientDlg::OnBnClickedUpload)
+	ON_BN_CLICKED(IDC_Disconnect, &Cftp_clientDlg::OnBnClickedDisconnect)
 END_MESSAGE_MAP()
 
 
@@ -114,11 +116,16 @@ BOOL Cftp_clientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
-	GetDlgItem(IDC_Ip)->SetWindowText(_T("192.168.100.99"));
+	//GetDlgItem(IDC_Ip)->SetWindowText(_T("192.168.100.99"));
+	GetDlgItem(IDC_Ip)->SetWindowText(_T("127.0.0.1"));
 	GetDlgItem(IDC_Account)->SetWindowText(_T("123"));
 	GetDlgItem(IDC_PassWord)->SetWindowText(_T("123"));
 	GetDlgItem(IDC_Port)->SetWindowTextW(_T("21"));
 
+	GetDlgItem(IDC_Disconnect)->EnableWindow(FALSE);
+	GetDlgItem(IDC_UpLoad)->EnableWindow(FALSE);
+	GetDlgItem(IDC_DownLoad)->EnableWindow(FALSE);
+	GetDlgItem(IDC_Delete)->EnableWindow(FALSE);
 	return TRUE; //除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -180,21 +187,37 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	UpdateData(TRUE);
 	curr_port = _ttoi(m_Port);
 
+	//if (!socket.Create(0, SOCK_STREAM, FD_CONNECT))
 	if (!socket.Create(0, SOCK_DGRAM, FD_CONNECT))
 	{
-		AfxMessageBox(L"Socket创建失败！", MB_ICONINFORMATION);
+		AfxMessageBox(L"Socket创建失败！", MB_ICONSTOP);
 		socket.Close();
 		return;
 	}
-	try
-	{
-		socket.Connect(m_Ip,curr_port);
-		AfxMessageBox(L"连接FTP服务器成功！", MB_ICONINFORMATION);
-	}
-	catch (_com_error& e)
-	{
-		AfxMessageBox(e.Description());
-	}
+	socket.Connect(m_Ip, curr_port);
+
+	//if (socket.if_connect)
+	//{
+
+	//	AfxMessageBox(L"连接FTP服务器成功！", MB_ICONINFORMATION);
+
+	GetDlgItem(IDC_Connect)->EnableWindow(FALSE);
+	GetDlgItem(IDC_Disconnect)->EnableWindow(TRUE);
+	GetDlgItem(IDC_UpLoad)->EnableWindow(TRUE);
+	GetDlgItem(IDC_DownLoad)->EnableWindow(TRUE);
+	GetDlgItem(IDC_Delete)->EnableWindow(TRUE);
+	//}
+	//else
+	//{
+	//	AfxMessageBox(L"连接FTP服务器失败！", MB_ICONSTOP);
+	//	socket.Close();
+	//}
+	CString temp;
+	temp = L"USER " + m_Name;
+	//CString转char *
+	USES_CONVERSION;
+	char *msg = T2A(temp);
+	socket.Send(msg, strlen(msg), 0);
 }
 
 //void Cftp_clientDlg::FindFile()//花费时间过长
@@ -279,3 +302,16 @@ void Cftp_clientDlg::OnBnClickedConnect()
 //	}
 //	FindFile();
 //}
+
+
+void Cftp_clientDlg::OnBnClickedDisconnect()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	socket.Close();
+	GetDlgItem(IDC_Disconnect)->EnableWindow(FALSE);
+	GetDlgItem(IDC_Connect)->EnableWindow(TRUE);
+	GetDlgItem(IDC_UpLoad)->EnableWindow(FALSE);
+	GetDlgItem(IDC_DownLoad)->EnableWindow(FALSE);
+	GetDlgItem(IDC_Delete)->EnableWindow(FALSE);
+	//清空FileList
+}

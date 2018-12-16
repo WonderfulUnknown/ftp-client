@@ -45,4 +45,5 @@ public:
 	//afx_msg void OnBnClickedDownload();
 	//afx_msg void FindFile();
 	//afx_msg void OnBnClickedUpload();
+	afx_msg void OnBnClickedDisconnect();
 };
