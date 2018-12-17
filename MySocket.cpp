@@ -38,12 +38,19 @@ void MySocket::OnConnect(int nErrorCode)
 void MySocket::OnReceive(int nErrorCode)
 {
 	Cftp_clientDlg *dlg = (Cftp_clientDlg*)AfxGetApp()->GetMainWnd();//主窗口指针对象
-	//每次receive之前需要把缓冲区清零
-	memset(data, 0, sizeof(data));
+
 	//length存储返回收到消息的长度，接收到的数据存到data中
 	length = Receive(data, sizeof(data), 0);
 
 	receive = data;
+	if (length != SOCKET_ERROR)
+		AfxMessageBox(receive, MB_ICONINFORMATION);
+	else
+		AsyncSelect(FD_READ);
+
+	//把缓冲区清零
+	memset(data, 0, sizeof(data));
+	CAsyncSocket::OnReceive(nErrorCode);
 }
 
 void MySocket::OnSend(int nErrorCode)
@@ -51,5 +58,6 @@ void MySocket::OnSend(int nErrorCode)
 	Send(msg, strlen(msg), 0);
 	//继续触发FD_READ事件,接收socket消息  
 	AsyncSelect(FD_READ);
+
 	CAsyncSocket::OnSend(nErrorCode);
 }

@@ -187,7 +187,6 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	UpdateData(TRUE);
 	curr_port = _ttoi(m_Port);
 
-	//if (!socket.Create(0, SOCK_STREAM, FD_CONNECT))
 	if (!socket.Create(0, SOCK_DGRAM, FD_CONNECT))
 	{
 		AfxMessageBox(L"Socket创建失败！", MB_ICONSTOP);
@@ -196,28 +195,18 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	}
 	socket.Connect(m_Ip, curr_port);
 
-	//if (socket.if_connect)
-	//{
-
-	//	AfxMessageBox(L"连接FTP服务器成功！", MB_ICONINFORMATION);
-
 	GetDlgItem(IDC_Connect)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Disconnect)->EnableWindow(TRUE);
 	GetDlgItem(IDC_UpLoad)->EnableWindow(TRUE);
 	GetDlgItem(IDC_DownLoad)->EnableWindow(TRUE);
 	GetDlgItem(IDC_Delete)->EnableWindow(TRUE);
-	//}
-	//else
-	//{
-	//	AfxMessageBox(L"连接FTP服务器失败！", MB_ICONSTOP);
-	//	socket.Close();
-	//}
-	CString temp;
-	temp = L"USER " + m_Name;
+
+	CString temp= L"USER " + m_Name;
 	//CString转char *
 	USES_CONVERSION;
-	char *msg = T2A(temp);
-	socket.Send(msg, strlen(msg), 0);
+	socket.msg = T2A(temp);
+	socket.Send(socket.msg, strlen(socket.msg), 0);
+	//socket.AsyncSelect(FD_WRITE);//传进去的msg变为烫烫烫
 }
 
 //void Cftp_clientDlg::FindFile()//花费时间过长
