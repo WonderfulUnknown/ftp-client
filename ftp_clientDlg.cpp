@@ -208,14 +208,16 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	USES_CONVERSION;
 	char *msg = T2A(L"USER " + m_Name);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
-	//socket.AsyncSelect(FD_READ);
-	socket.OnReceive(0);
-	if (socket.IsName)
-	{
+	//设置定时器，如果超时说明服务器不在
+	//while(!socket.IsName)
+	//	socket.OnReceive(0);
+	//if (socket.IsName)
+	//{
 		msg = T2A(L"PASS " + m_Pwd);
 		socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
-		//socket.AsyncSelect(FD_READ);
-		socket.OnReceive(0);
+
+		//while (!socket.IsLogin)
+			socket.OnReceive(0);
 		if (socket.IsLogin)
 		{
 			AfxMessageBox(L"成功登录FTP服务器！", MB_ICONINFORMATION);
@@ -225,11 +227,11 @@ void Cftp_clientDlg::OnBnClickedConnect()
 			GetDlgItem(IDC_DownLoad)->EnableWindow(TRUE);
 			GetDlgItem(IDC_Delete)->EnableWindow(TRUE);
 		}
-		else
-			AfxMessageBox(L"密码错误！", MB_ICONSTOP);
-	}
-	else
-		AfxMessageBox(L"用户名不存在！", MB_ICONSTOP);
+		//else
+		//	AfxMessageBox(L"密码错误！", MB_ICONSTOP);
+	//}
+	//else
+		//AfxMessageBox(L"用户名不存在！", MB_ICONSTOP);
 
 
 
