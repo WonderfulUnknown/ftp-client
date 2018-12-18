@@ -57,8 +57,8 @@ Cftp_clientDlg::Cftp_clientDlg(CWnd* pParent /*=NULL*/)
 	, m_Name(_T(""))
 	, m_Pwd(_T(""))
 	, m_Ip(_T(""))
-	, m_Port(_T(""))
-	, curr_port(0)
+	, m_Port(0)
+	//, curr_port(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -126,6 +126,12 @@ BOOL Cftp_clientDlg::OnInitDialog()
 	GetDlgItem(IDC_UpLoad)->EnableWindow(FALSE);
 	GetDlgItem(IDC_DownLoad)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Delete)->EnableWindow(FALSE);
+
+	if (!socket.Create(0, SOCK_DGRAM, FD_READ))
+	{
+		AfxMessageBox(L"Socket创建失败！", MB_ICONSTOP);
+		socket.Close();
+	}
 	return TRUE; //除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -185,28 +191,52 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	// TODO: 在此添加控件通知处理程序代码
 	//获取对话框输入
 	UpdateData(TRUE);
-	curr_port = _ttoi(m_Port);
-
-	if (!socket.Create(0, SOCK_DGRAM, FD_CONNECT))
+	if (m_Name.IsEmpty())
 	{
-		AfxMessageBox(L"Socket创建失败！", MB_ICONSTOP);
-		socket.Close();
+		AfxMessageBox(L"请输入用户名！", MB_ICONSTOP);
 		return;
 	}
-	socket.Connect(m_Ip, curr_port);
+	else if (m_Pwd.IsEmpty())
+	{
+		AfxMessageBox(L"请输入密码！", MB_ICONSTOP);
+		return;
+	}
 
-	GetDlgItem(IDC_Connect)->EnableWindow(FALSE);
-	GetDlgItem(IDC_Disconnect)->EnableWindow(TRUE);
-	GetDlgItem(IDC_UpLoad)->EnableWindow(TRUE);
-	GetDlgItem(IDC_DownLoad)->EnableWindow(TRUE);
-	GetDlgItem(IDC_Delete)->EnableWindow(TRUE);
+	socket.server_ip = m_Ip;
+	socket.server_port = m_Port;
 
-	CString temp= L"USER " + m_Name;
-	//CString转char *
 	USES_CONVERSION;
-	socket.msg = T2A(temp);
-	socket.Send(socket.msg, strlen(socket.msg), 0);
-	//socket.AsyncSelect(FD_WRITE);//传进去的msg变为烫烫烫
+	char *msg = T2A(L"USER " + m_Name);
+	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+	//socket.AsyncSelect(FD_READ);
+	socket.OnReceive(0);
+	if (socket.IsName)
+	{
+		msg = T2A(L"PASS " + m_Pwd);
+		socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+		//socket.AsyncSelect(FD_READ);
+		socket.OnReceive(0);
+		if (socket.IsLogin)
+		{
+			AfxMessageBox(L"成功登录FTP服务器！", MB_ICONINFORMATION);
+			GetDlgItem(IDC_Connect)->EnableWindow(FALSE);
+			GetDlgItem(IDC_Disconnect)->EnableWindow(TRUE);
+			GetDlgItem(IDC_UpLoad)->EnableWindow(TRUE);
+			GetDlgItem(IDC_DownLoad)->EnableWindow(TRUE);
+			GetDlgItem(IDC_Delete)->EnableWindow(TRUE);
+		}
+		else
+			AfxMessageBox(L"密码错误！", MB_ICONSTOP);
+	}
+	else
+		AfxMessageBox(L"用户名不存在！", MB_ICONSTOP);
+
+
+
+	//socket.mess = L"USER " + m_Name;
+	//socket.AsyncSelect(FD_WRITE);
+	//socket.mess = L"PASS " + m_Pwd;
+	//socket.AsyncSelect(FD_WRITE);
 }
 
 //void Cftp_clientDlg::FindFile()//花费时间过长

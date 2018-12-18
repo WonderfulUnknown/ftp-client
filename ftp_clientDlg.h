@@ -40,8 +40,8 @@ public:
 	CString m_Name;
 	CString m_Pwd;
 	CString m_Ip;
-	CString m_Port;
-	int curr_port;
+	UINT m_Port;
+	//int curr_port;
 	//afx_msg void OnBnClickedDownload();
 	//afx_msg void FindFile();
 	//afx_msg void OnBnClickedUpload();
