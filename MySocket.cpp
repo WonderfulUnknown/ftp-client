@@ -38,11 +38,7 @@ void MySocket::OnReceive(int nErrorCode)
 			IsName = TRUE;
 		else if (receive.Left(29) == "230 USER login successfully")
 			IsLogin = TRUE;
-		else
-		{
-			IsName = FALSE;
-			IsLogin = FALSE;
-		}
+		//else if(receive.Left)
 	}
 	//else
 		//AfxMessageBox(L"FTP服务器不存在！", MB_ICONSTOP);

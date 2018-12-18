@@ -61,6 +61,7 @@ Cftp_clientDlg::Cftp_clientDlg(CWnd* pParent /*=NULL*/)
 	//, curr_port(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	time = 50;
 }
 
 void Cftp_clientDlg::DoDataExchange(CDataExchange* pDX)
@@ -204,20 +205,21 @@ void Cftp_clientDlg::OnBnClickedConnect()
 
 	socket.server_ip = m_Ip;
 	socket.server_port = m_Port;
-
+	
 	USES_CONVERSION;
-	char *msg = T2A(L"USER " + m_Name);
+	msg = T2A(L"USER " + m_Name);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
-	//设置定时器，如果超时说明服务器不在
-	//while(!socket.IsName)
-	//	socket.OnReceive(0);
-	//if (socket.IsName)
-	//{
+	//休眠10ms，否则无法收到回信就进行后面的操作
+	Sleep(10);
+	socket.OnReceive(0);
+	if (socket.IsName)
+	{
 		msg = T2A(L"PASS " + m_Pwd);
 		socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 
 		//while (!socket.IsLogin)
-			socket.OnReceive(0);
+		Sleep(10);
+		socket.OnReceive(0);
 		if (socket.IsLogin)
 		{
 			AfxMessageBox(L"成功登录FTP服务器！", MB_ICONINFORMATION);
@@ -227,112 +229,26 @@ void Cftp_clientDlg::OnBnClickedConnect()
 			GetDlgItem(IDC_DownLoad)->EnableWindow(TRUE);
 			GetDlgItem(IDC_Delete)->EnableWindow(TRUE);
 		}
-		//else
-		//	AfxMessageBox(L"密码错误！", MB_ICONSTOP);
-	//}
-	//else
-		//AfxMessageBox(L"用户名不存在！", MB_ICONSTOP);
-
-
-
-	//socket.mess = L"USER " + m_Name;
-	//socket.AsyncSelect(FD_WRITE);
-	//socket.mess = L"PASS " + m_Pwd;
-	//socket.AsyncSelect(FD_WRITE);
+		else
+			AfxMessageBox(L"密码错误！", MB_ICONSTOP);
+	}
+	else
+		AfxMessageBox(L"用户名不存在！", MB_ICONSTOP);
 }
 
-//void Cftp_clientDlg::FindFile()//花费时间过长
-//{
-//	//清除FileList之前的内容
-//	while (m_FileList.GetCount() != 0)
-//		m_FileList.DeleteString(0);
-//
-//	CFtpFileFind ftpfind(m_FtpConn.pConnection);
-//	if (ftpfind.FindFile(L"*"))//查找所有的文件
-//	{
-//		CString FileName;
-//		while (ftpfind.FindNextFile())
-//		{
-//			//判断是否是目录
-//			if (!ftpfind.IsDirectory())
-//			{
-//				FileName = ftpfind.GetFileName();
-//				m_FileList.AddString(FileName);
-//			}
-//		}
-//		//最后一项
-//		if (!ftpfind.IsDirectory())
-//		{
-//			FileName = ftpfind.GetFileName();
-//			m_FileList.AddString(FileName);
-//		}
-//	}
-//}
-//
-//void Cftp_clientDlg::OnBnClickedDownload()
-//{
-//	// TODO: 在此添加控件通知处理程序代码
-//	m_FtpConn.InitConnect(m_Ip, m_Name, m_Pwd, curr_port, TRUE);
-//
-//	CString curr_file, filename;
-//	//获取被选中的文件名称
-//	m_FileList.GetText(m_FileList.GetCurSel(), curr_file);
-//	if (!curr_file.IsEmpty())
-//	{
-//		//弹出另存为对话框
-//		CFileDialog file(FALSE, NULL, curr_file, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-//			_T("所有文件(*.*)|*.*|"), this);
-//		if (file.DoModal() == IDOK)
-//		{
-//			filename = file.GetPathName();
-//			//下载文件到选定的本地位置
-//			if (m_FtpConn.pConnection->GetFile(curr_file, filename))
-//				AfxMessageBox(L"下载成功！", MB_ICONINFORMATION);
-//			else
-//				AfxMessageBox(L"下载失败！", MB_ICONSTOP);
-//		}
-//	}
-//	m_FtpConn.ExitConnect();
-//
-//	//使用Get,Set改变Ftp服务器文件目录
-//	//CString address;
-//	//m_FtpConn.pConnection->GetCurrentDirectory(address);
-//	//m_FtpConn.pConnection->SetCurrentDirectory(address);
-//}
-//
-//
-//void Cftp_clientDlg::OnBnClickedUpload()
-//{
-//	// TODO: 在此添加控件通知处理程序代码
-//	m_FtpConn.InitConnect(m_Ip, m_Name, m_Pwd, curr_port, TRUE);
-//	CString path, filename, directory;
-//	//弹出打开对话框
-//	CFileDialog file(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
-//		_T("所有文件(*.*)|*.*|"), this);
-//	if (file.DoModal() == IDOK)
-//	{
-//		path = file.GetPathName();
-//		filename = file.GetFileName();
-//	}
-//	m_FtpConn.pConnection->GetCurrentDirectory(directory);
-//	//上传文件
-//	if (m_FtpConn.pConnection->PutFile((LPCTSTR)path, (LPCTSTR)filename))
-//	{
-//		m_FtpConn.pConnection->SetCurrentDirectory(directory);
-//		AfxMessageBox(_T("上传成功！"));
-//	}
-//	FindFile();
-//}
 
 
 void Cftp_clientDlg::OnBnClickedDisconnect()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	socket.Close();
+	//socket.Close();
 	GetDlgItem(IDC_Disconnect)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Connect)->EnableWindow(TRUE);
 	GetDlgItem(IDC_UpLoad)->EnableWindow(FALSE);
 	GetDlgItem(IDC_DownLoad)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Delete)->EnableWindow(FALSE);
+	
+	socket.IsName = FALSE;
+	socket.IsLogin = FALSE;
 	//清空FileList
 }

@@ -41,9 +41,7 @@ public:
 	CString m_Pwd;
 	CString m_Ip;
 	UINT m_Port;
-	//int curr_port;
-	//afx_msg void OnBnClickedDownload();
-	//afx_msg void FindFile();
-	//afx_msg void OnBnClickedUpload();
+	int time;
+	char *msg;//发送的消息
 	afx_msg void OnBnClickedDisconnect();
 };
