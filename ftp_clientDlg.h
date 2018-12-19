@@ -35,14 +35,20 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	MySocket socket;
-	afx_msg void OnBnClickedConnect();
 	CListBox m_FileList;
 	CString m_Name;
 	CString m_Pwd;
 	CString m_Ip;
 	UINT m_Port;
+	char data[2048];
 	char *msg;//发送的消息
-	afx_msg void OnBnClickedDisconnect();
+	CStdioFile file;
+
 	void GetList();
-	bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction);
+	bool Compare_Recv(const char* recvstr, const char* instruction);
+
+	afx_msg void OnBnClickedDisconnect();
+	afx_msg void OnBnClickedConnect();
+	afx_msg void OnBnClickedDownload();
+	afx_msg void OnBnClickedUpload();
 };

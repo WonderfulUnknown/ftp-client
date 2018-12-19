@@ -81,6 +81,8 @@ BEGIN_MESSAGE_MAP(Cftp_clientDlg, CDialogEx)
 	//ON_BN_CLICKED(IDC_DownLoad, &Cftp_clientDlg::OnBnClickedDownload)
 	//ON_BN_CLICKED(IDC_UpLoad, &Cftp_clientDlg::OnBnClickedUpload)
 	ON_BN_CLICKED(IDC_Disconnect, &Cftp_clientDlg::OnBnClickedDisconnect)
+	ON_BN_CLICKED(IDC_DownLoad, &Cftp_clientDlg::OnBnClickedDownload)
+	ON_BN_CLICKED(IDC_UpLoad, &Cftp_clientDlg::OnBnClickedUpload)
 END_MESSAGE_MAP()
 
 
@@ -246,8 +248,6 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	//socket.Close();
-	//msg = "QUIT";
-	//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 	socket.data = L"QUIT";
 	socket.OnSend(0);
 	GetDlgItem(IDC_Disconnect)->EnableWindow(FALSE);
@@ -259,6 +259,7 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 	socket.IsName = FALSE;
 	socket.IsLogin = FALSE;
 	//清空FileList
+	m_FileList.ResetContent();
 }
 
 // 对收到的指令进行判断
@@ -288,19 +289,17 @@ bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction)
 
 void Cftp_clientDlg::GetList()
 {
-	char recvbuffer[2048];
-
 	socket.data = L"LIST";
 	socket.OnSend(0);
 
 	int length;
 	Sleep(10);
 	//socket.OnReceive(0);//无法接受到数据
-	length = socket.ReceiveFrom(recvbuffer, sizeof(recvbuffer), m_Ip, m_Port, 0);
+	length = socket.ReceiveFrom(data, sizeof(data), m_Ip, m_Port, 0);
 	if (length != SOCKET_ERROR)
 	{
-		recvbuffer[length] = '\0';//否则后面收到的数据会影响
-		CString List(recvbuffer);
+		data[length] = '\0';//避免后面收到的数据造成影响
+		CString List(data);
 		int index = List.Find(L",");
 		while (index != -1)
 		{
@@ -310,4 +309,75 @@ void Cftp_clientDlg::GetList()
 		}
 		m_FileList.AddString(List);
 	}
+}
+
+
+void Cftp_clientDlg::OnBnClickedDownload()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CString filename;
+	//获取被选中的文件名称
+	m_FileList.GetText(m_FileList.GetCurSel(), filename);
+	CString temp_filename = filename;
+	filename = L"DOWNLOAD:" + filename + L"\r\n";
+	CString filepath = L"DOWNLOAD\\" + temp_filename;
+	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);       //创建并以二进制打开要下载的文件
+	CString exist;
+	char sendbuf[1024];
+	char recvbuf[1024];
+	char recvbuffer[1024];
+	USES_CONVERSION;
+	msg = T2A(filename);
+	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+	//int length;
+	//OutFile();
+	
+	sockaddr_in addr_aim;
+	addr_aim.sin_family = AF_INET;
+	addr_aim.sin_port = m_Port;
+	int len = sizeof(addr_aim);
+	int length;
+	int num = 0;  //下一个要接受的数据包id
+	//bool end = false;
+	packet send;
+	packet recv;
+	send.end = false;
+	while (1)
+	{
+		length = socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
+		//length = recvfrom(socket, (char*)&recv, sizeof(recv), 0, (sockaddr*)&addr_aim, &len);
+		//if (length = SOCKET_ERROR)
+		//continue;
+		if (length != SOCKET_ERROR)
+		{
+			if (recv.end == true)
+				break;
+			else
+			{
+				if (recv.number == num)
+				{
+					recv.data[recv.length] = '\0';
+					file.SeekToEnd();
+					file.Write(recv.data, recv.length);
+					//file.Write(recv.data, recv.length);
+					//file.Write(recv.data, strlen(recv.data));
+					num++;
+				}
+				strcpy(send.data, "ACK");
+				send.length = strlen(send.data);
+				send.number = num;
+				//sendto(socket, (char*)&send, sizeof(send), 0, (sockaddr*)&addr_aim, sizeof(addr_aim));
+				socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
+			}
+		}
+	}
+
+	file.Close();
+	AfxMessageBox(L"文件下载成功！", MB_ICONINFORMATION);
+}
+
+
+void Cftp_clientDlg::OnBnClickedUpload()
+{
+	// TODO: 在此添加控件通知处理程序代码
 }
