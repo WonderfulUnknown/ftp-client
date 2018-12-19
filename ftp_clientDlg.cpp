@@ -204,7 +204,7 @@ void Cftp_clientDlg::OnBnClickedConnect()
 
 	socket.server_ip = m_Ip;
 	socket.server_port = m_Port;
-	
+
 	USES_CONVERSION;
 	socket.data = T2A(L"USER " + m_Name);
 	socket.OnSend(0);
@@ -255,7 +255,7 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 	GetDlgItem(IDC_UpLoad)->EnableWindow(FALSE);
 	GetDlgItem(IDC_DownLoad)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Delete)->EnableWindow(FALSE);
-	
+
 	socket.IsName = FALSE;
 	socket.IsLogin = FALSE;
 	//清空FileList
@@ -265,7 +265,7 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction)
 {
 	int i;
-	for (i = 0; i<strlen(instruction); i++)
+	for (i = 0; i < strlen(instruction); i++)
 	{
 		if (i >= strlen(recvstr))          //如果收到字符长度小于命令字的长度，则退出
 		{
@@ -288,55 +288,26 @@ bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction)
 
 void Cftp_clientDlg::GetList()
 {
-	char sendbuf[1024];
-
 	char recvbuffer[2048];
-	char recvbuf[2048];
-	char list[2048];
-	memset(recvbuffer, 0, sizeof(recvbuffer));
-	CString exist;
 
 	socket.data = L"LIST";
 	socket.OnSend(0);
-	
-	//int recv;
-//	int num = 0;
-//	while (num < 2)//此处需要确保接收到两个数据包，分别为服务器发来的目录信息和完成信息 
-//	{
-		Sleep(10);
-		//socket.OnReceive(0);
-		//recv = socket.ReceiveFrom(recvbuffer, sizeof(recvbuffer), m_Ip, m_Port, 0);
-		//没收到数据
-		socket.ReceiveFrom(recvbuffer, sizeof(recvbuffer), m_Ip, m_Port, 0);
-		if (socket.length != SOCKET_ERROR)
-		{
-			recvbuffer[socket.length] = '\0';
-			strcpy(list, recvbuffer);
-			//if (Compare_Recv(recvbuffer, "Finished!") == true)
-			//{
-			//	strcpy(recvbuf, recvbuffer);
-			//}
-			//else
-			//{
-			//	strcpy(list, recvbuffer);
-			//}
-			//num++;
-		}
-		//num++;
-	//}
-	CString List(list);
-	int index = List.Find(L",");
-	while (index != -1)
+
+	int length;
+	Sleep(10);
+	//socket.OnReceive(0);//无法接受到数据
+	length = socket.ReceiveFrom(recvbuffer, sizeof(recvbuffer), m_Ip, m_Port, 0);
+	if (length != SOCKET_ERROR)
 	{
-		m_FileList.AddString(List.Left(index));
-		List = List.Right(List.GetLength() - index - 1);
-		index = List.Find(L",");
+		recvbuffer[length] = '\0';//否则后面收到的数据会影响
+		CString List(recvbuffer);
+		int index = List.Find(L",");
+		while (index != -1)
+		{
+			m_FileList.AddString(List.Left(index));
+			List = List.Right(List.GetLength() - index - 1);
+			index = List.Find(L",");
+		}
+		m_FileList.AddString(List);
 	}
-	m_FileList.AddString(List);
-	//CString send_s(sendbuf);
-	//CString recv_s(recvbuf);
-	//m_chat.GetWindowTextW(exist);
-	//exist = exist + L"C:" + send_s + L"S:" + recv_s;
-	//m_chat.SetWindowTextW(exist);
-	//return 0;
 }
