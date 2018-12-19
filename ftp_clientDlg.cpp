@@ -61,7 +61,6 @@ Cftp_clientDlg::Cftp_clientDlg(CWnd* pParent /*=NULL*/)
 	//, curr_port(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-	time = 50;
 }
 
 void Cftp_clientDlg::DoDataExchange(CDataExchange* pDX)
@@ -207,17 +206,20 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	socket.server_port = m_Port;
 	
 	USES_CONVERSION;
-	msg = T2A(L"USER " + m_Name);
-	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+	socket.data = T2A(L"USER " + m_Name);
+	socket.OnSend(0);
+	//msg = T2A(L"USER " + m_Name);
+	//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 	//休眠10ms，否则无法收到回信就进行后面的操作
 	Sleep(10);
 	socket.OnReceive(0);
 	if (socket.IsName)
 	{
-		msg = T2A(L"PASS " + m_Pwd);
-		socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+		//msg = T2A(L"PASS " + m_Pwd);
+		//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+		socket.data = T2A(L"PASS " + m_Pwd);
+		socket.OnSend(0);
 
-		//while (!socket.IsLogin)
 		Sleep(10);
 		socket.OnReceive(0);
 		if (socket.IsLogin)
@@ -234,6 +236,8 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	}
 	else
 		AfxMessageBox(L"用户名不存在！", MB_ICONSTOP);
+
+	GetList();//获取文件列表
 }
 
 
@@ -242,6 +246,10 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	//socket.Close();
+	//msg = "QUIT";
+	//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+	socket.data = L"QUIT";
+	socket.OnSend(0);
 	GetDlgItem(IDC_Disconnect)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Connect)->EnableWindow(TRUE);
 	GetDlgItem(IDC_UpLoad)->EnableWindow(FALSE);
@@ -251,4 +259,84 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 	socket.IsName = FALSE;
 	socket.IsLogin = FALSE;
 	//清空FileList
+}
+
+// 对收到的指令进行判断
+bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction)
+{
+	int i;
+	for (i = 0; i<strlen(instruction); i++)
+	{
+		if (i >= strlen(recvstr))          //如果收到字符长度小于命令字的长度，则退出
+		{
+			break;
+		}
+		if (!(recvstr[i] == instruction[i] || (recvstr[i] + 32) == instruction[i]))  //假设命令字为全小写，若接受字符的命令字字段与命令字不符合，退出
+		{
+			break;
+		}
+	}
+	if (i != strlen(instruction))
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+void Cftp_clientDlg::GetList()
+{
+	char sendbuf[1024];
+
+	char recvbuffer[2048];
+	char recvbuf[2048];
+	char list[2048];
+	memset(recvbuffer, 0, sizeof(recvbuffer));
+	CString exist;
+
+	socket.data = L"LIST";
+	socket.OnSend(0);
+	
+	//int recv;
+//	int num = 0;
+//	while (num < 2)//此处需要确保接收到两个数据包，分别为服务器发来的目录信息和完成信息 
+//	{
+		Sleep(10);
+		//socket.OnReceive(0);
+		//recv = socket.ReceiveFrom(recvbuffer, sizeof(recvbuffer), m_Ip, m_Port, 0);
+		//没收到数据
+		socket.ReceiveFrom(recvbuffer, sizeof(recvbuffer), m_Ip, m_Port, 0);
+		if (socket.length != SOCKET_ERROR)
+		{
+			recvbuffer[socket.length] = '\0';
+			strcpy(list, recvbuffer);
+			//if (Compare_Recv(recvbuffer, "Finished!") == true)
+			//{
+			//	strcpy(recvbuf, recvbuffer);
+			//}
+			//else
+			//{
+			//	strcpy(list, recvbuffer);
+			//}
+			//num++;
+		}
+		//num++;
+	//}
+	CString List(list);
+	int index = List.Find(L",");
+	while (index != -1)
+	{
+		m_FileList.AddString(List.Left(index));
+		List = List.Right(List.GetLength() - index - 1);
+		index = List.Find(L",");
+	}
+	m_FileList.AddString(List);
+	//CString send_s(sendbuf);
+	//CString recv_s(recvbuf);
+	//m_chat.GetWindowTextW(exist);
+	//exist = exist + L"C:" + send_s + L"S:" + recv_s;
+	//m_chat.SetWindowTextW(exist);
+	//return 0;
 }

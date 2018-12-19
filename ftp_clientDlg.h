@@ -41,7 +41,8 @@ public:
 	CString m_Pwd;
 	CString m_Ip;
 	UINT m_Port;
-	int time;
 	char *msg;//发送的消息
 	afx_msg void OnBnClickedDisconnect();
+	void GetList();
+	bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction);
 };

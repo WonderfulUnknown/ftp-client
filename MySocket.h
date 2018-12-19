@@ -9,10 +9,10 @@ public:
 	void OnReceive(int nErrorCode);
 	void OnSend(int nErrorCode);
 
-	//CString mess;//从Dlg传入要发送的数据
+	CString data;//从Dlg传入数据
 	char *msg;//发送的数据
 	int length;//消息长度  
-	char data[98000];//消息缓冲区  
+	char recv[98000];//消息缓冲区  
 	CString receive;//存放从缓冲区中取出来的数据
 	CString server_ip;//存储服务器地址
 	UINT server_port;//服务器端口
@@ -23,3 +23,11 @@ public:
 	bool IsLogin;//是否登录
 };
 
+//接受文件时的数据结构
+struct packet
+{
+	char data[2048];//数据
+	int number;//包的号码
+	int length;//数据长度
+	bool end;//代表结束的数据包
+};
