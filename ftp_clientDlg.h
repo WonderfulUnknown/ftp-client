@@ -45,7 +45,6 @@ public:
 	CStdioFile file;
 
 	void GetList();
-	bool Compare_Recv(const char* recvstr, const char* instruction);
 
 	afx_msg void OnBnClickedDisconnect();
 	afx_msg void OnBnClickedConnect();

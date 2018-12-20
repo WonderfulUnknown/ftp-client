@@ -118,7 +118,6 @@ BOOL Cftp_clientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
-	//GetDlgItem(IDC_Ip)->SetWindowText(_T("192.168.100.99"));
 	GetDlgItem(IDC_Ip)->SetWindowText(_T("127.0.0.1"));
 	GetDlgItem(IDC_Account)->SetWindowText(_T("123"));
 	GetDlgItem(IDC_PassWord)->SetWindowText(_T("123"));
@@ -191,6 +190,7 @@ HCURSOR Cftp_clientDlg::OnQueryDragIcon()
 void Cftp_clientDlg::OnBnClickedConnect()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	m_FileList.ResetContent();
 	//获取对话框输入
 	UpdateData(TRUE);
 	if (m_Name.IsEmpty())
@@ -210,15 +210,11 @@ void Cftp_clientDlg::OnBnClickedConnect()
 	USES_CONVERSION;
 	socket.data = T2A(L"USER " + m_Name);
 	socket.OnSend(0);
-	//msg = T2A(L"USER " + m_Name);
-	//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 	//休眠10ms，否则无法收到回信就进行后面的操作
 	Sleep(10);
 	socket.OnReceive(0);
 	if (socket.IsName)
 	{
-		//msg = T2A(L"PASS " + m_Pwd);
-		//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 		socket.data = T2A(L"PASS " + m_Pwd);
 		socket.OnSend(0);
 
@@ -262,31 +258,6 @@ void Cftp_clientDlg::OnBnClickedDisconnect()
 	m_FileList.ResetContent();
 }
 
-// 对收到的指令进行判断
-bool Cftp_clientDlg::Compare_Recv(const char* recvstr, const char* instruction)
-{
-	int i;
-	for (i = 0; i < strlen(instruction); i++)
-	{
-		if (i >= strlen(recvstr))          //如果收到字符长度小于命令字的长度，则退出
-		{
-			break;
-		}
-		if (!(recvstr[i] == instruction[i] || (recvstr[i] + 32) == instruction[i]))  //假设命令字为全小写，若接受字符的命令字字段与命令字不符合，退出
-		{
-			break;
-		}
-	}
-	if (i != strlen(instruction))
-	{
-		return false;
-	}
-	else
-	{
-		return true;
-	}
-}
-
 void Cftp_clientDlg::GetList()
 {
 	socket.data = L"LIST";
@@ -321,24 +292,17 @@ void Cftp_clientDlg::OnBnClickedDownload()
 	CString temp_filename = filename;
 	filename = L"DOWNLOAD:" + filename + L"\r\n";
 	CString filepath = L"DOWNLOAD\\" + temp_filename;
-	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);       //创建并以二进制打开要下载的文件
-	CString exist;
+	//创建并以二进制打开要下载的文件
+	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);       
 	char sendbuf[1024];
 	char recvbuf[1024];
 	char recvbuffer[1024];
 	USES_CONVERSION;
 	msg = T2A(filename);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
-	//int length;
-	//OutFile();
-	
-	sockaddr_in addr_aim;
-	addr_aim.sin_family = AF_INET;
-	addr_aim.sin_port = m_Port;
-	int len = sizeof(addr_aim);
+
 	int length;
 	int num = 0;  //下一个要接受的数据包id
-	//bool end = false;
 	packet send;
 	packet recv;
 	send.end = false;
@@ -359,7 +323,6 @@ void Cftp_clientDlg::OnBnClickedDownload()
 					recv.data[recv.length] = '\0';
 					file.SeekToEnd();
 					file.Write(recv.data, recv.length);
-					//file.Write(recv.data, recv.length);
 					//file.Write(recv.data, strlen(recv.data));
 					num++;
 				}
@@ -371,7 +334,6 @@ void Cftp_clientDlg::OnBnClickedDownload()
 			}
 		}
 	}
-
 	file.Close();
 	AfxMessageBox(L"文件下载成功！", MB_ICONINFORMATION);
 }
@@ -380,4 +342,45 @@ void Cftp_clientDlg::OnBnClickedDownload()
 void Cftp_clientDlg::OnBnClickedUpload()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	CString path, filename, directory;
+	//弹出打开对话框
+	CFileDialog File(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
+		_T("所有文件(*.*)|*.*|"), this);
+	if (File.DoModal() == IDOK)
+	{
+		path = File.GetPathName();
+		filename = File.GetFileName();
+	}
+
+	filename = L"UPLOAD:" + filename + L"\r\n";
+	//以二进制打开要上传的文件
+	file.Open(path, CFile::modeRead | CFile::typeBinary);       
+
+	USES_CONVERSION;
+	msg = T2A(filename);
+	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+	packet send;
+	packet recv;
+	int num = 0;
+	file.SeekToBegin();
+	int length_packet = file.GetLength();
+	send.length = file.Read(send.data, 1024);
+	send.end = false;
+	while (send.length)
+	{
+		send.number = num;
+		//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+		socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
+		socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
+		//如果发回来的数据包表明刚刚发送的数据包没有错误
+		if (recv.number == num + 1)         
+		{
+			num++;
+			send.length = file.Read(send.data, 1024);
+		}
+	}
+	send.end = true;
+	socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
+	file.Close();
+	AfxMessageBox(L"文件上传成功！", MB_ICONINFORMATION);
 }
