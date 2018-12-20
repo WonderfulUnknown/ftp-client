@@ -30,7 +30,7 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);   //DDX/DDV 支持
 
-// 实现
+													   // 实现
 protected:
 	DECLARE_MESSAGE_MAP()
 };
@@ -117,7 +117,7 @@ BOOL Cftp_clientDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
-	// TODO: 在此添加额外的初始化代码
+									// TODO: 在此添加额外的初始化代码
 	GetDlgItem(IDC_Ip)->SetWindowText(_T("127.0.0.1"));
 	GetDlgItem(IDC_Account)->SetWindowText(_T("123"));
 	GetDlgItem(IDC_PassWord)->SetWindowText(_T("123"));
@@ -286,32 +286,33 @@ void Cftp_clientDlg::GetList()
 void Cftp_clientDlg::OnBnClickedDownload()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CString filename;
+	CString filename, filepath;
 	//获取被选中的文件名称
 	m_FileList.GetText(m_FileList.GetCurSel(), filename);
-	CString temp_filename = filename;
-	filename = L"DOWNLOAD:" + filename + L"\r\n";
-	CString filepath = L"DOWNLOAD\\" + temp_filename;
-	//创建并以二进制打开要下载的文件
-	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);       
-	char sendbuf[1024];
-	char recvbuf[1024];
-	char recvbuffer[1024];
+
+	//CString filepath = L"Download\\" + filename;
+	//弹出另存为对话框
+	CFileDialog File(FALSE, NULL, filename, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
+		_T("所有文件(*.*)|*.*|"), this);
+	if (File.DoModal() == IDOK)
+	{
+		filename = File.GetFileName();
+		filepath = File.GetPathName();
+	}
+
+	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);
 	USES_CONVERSION;
+	filename = L"DOWNLOAD:" + filename;
 	msg = T2A(filename);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 
-	int length;
-	int num = 0;  //下一个要接受的数据包id
+	int length, num = 0;
 	packet send;
 	packet recv;
 	send.end = false;
 	while (1)
 	{
 		length = socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
-		//length = recvfrom(socket, (char*)&recv, sizeof(recv), 0, (sockaddr*)&addr_aim, &len);
-		//if (length = SOCKET_ERROR)
-		//continue;
 		if (length != SOCKET_ERROR)
 		{
 			if (recv.end == true)
@@ -329,7 +330,6 @@ void Cftp_clientDlg::OnBnClickedDownload()
 				strcpy(send.data, "ACK");
 				send.length = strlen(send.data);
 				send.number = num;
-				//sendto(socket, (char*)&send, sizeof(send), 0, (sockaddr*)&addr_aim, sizeof(addr_aim));
 				socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
 			}
 		}
@@ -352,33 +352,31 @@ void Cftp_clientDlg::OnBnClickedUpload()
 		filename = File.GetFileName();
 	}
 
-	filename = L"UPLOAD:" + filename + L"\r\n";
-	//以二进制打开要上传的文件
-	file.Open(path, CFile::modeRead | CFile::typeBinary);       
+	filename = L"UPLOAD:" + filename;
+	file.Open(path, CFile::modeRead | CFile::typeBinary);
 
 	USES_CONVERSION;
 	msg = T2A(filename);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 	packet send;
 	packet recv;
-	int num = 0;
+	int length, num = 0;
 	file.SeekToBegin();
-	int length_packet = file.GetLength();
 	send.length = file.Read(send.data, 1024);
 	send.end = false;
 	while (send.length)
 	{
 		send.number = num;
-		//socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 		socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
-		socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
-		//如果发回来的数据包表明刚刚发送的数据包没有错误
-		if (recv.number == num + 1)         
+		length = socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
+		//通过number判断刚发送的数据包是否送达
+		if (length != SOCKET_ERROR)
 		{
-			num++;
-			send.length = file.Read(send.data, 1024);
+			if (recv.number == ++num)
+				send.length = file.Read(send.data, 1024);
 		}
 	}
+	//最后一次传输空数据包
 	send.end = true;
 	socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
 	file.Close();
