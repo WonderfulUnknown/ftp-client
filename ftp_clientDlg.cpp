@@ -364,11 +364,10 @@ void Cftp_clientDlg::OnBnClickedUpload()
 	}
 	else return;
 
-	filename = L"UPLOAD " + filename;
 	file.Open(path, CFile::modeRead | CFile::typeBinary);
 
 	USES_CONVERSION;
-	msg = T2A(filename);
+	msg = T2A(L"UPLOAD " + filename);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 
 	packet send, recv;
@@ -403,7 +402,7 @@ void Cftp_clientDlg::OnBnClickedUpload()
 
 	AfxMessageBox(L"文件上传成功！", MB_ICONINFORMATION);
 	//GetList();
-	m_FileList.AddString(File.GetFileName());
+	m_FileList.AddString(filename);
 }
 
 
