@@ -23,6 +23,15 @@ MySocket::~MySocket()
 	}
 }
 
+packet::packet()
+{
+	memset(data, 0, 1024);
+	end = FALSE;
+}
+
+packet::~packet()
+{
+}
 
 void MySocket::OnReceive(int nErrorCode)
 {

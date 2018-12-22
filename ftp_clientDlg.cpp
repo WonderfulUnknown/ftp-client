@@ -83,6 +83,7 @@ BEGIN_MESSAGE_MAP(Cftp_clientDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_Disconnect, &Cftp_clientDlg::OnBnClickedDisconnect)
 	ON_BN_CLICKED(IDC_DownLoad, &Cftp_clientDlg::OnBnClickedDownload)
 	ON_BN_CLICKED(IDC_UpLoad, &Cftp_clientDlg::OnBnClickedUpload)
+	ON_BN_CLICKED(IDC_Delete, &Cftp_clientDlg::OnBnClickedDelete)
 END_MESSAGE_MAP()
 
 
@@ -263,22 +264,29 @@ void Cftp_clientDlg::GetList()
 	socket.data = L"LIST";
 	socket.OnSend(0);
 
-	int length;
-	Sleep(10);
+	//Sleep(10);
 	//socket.OnReceive(0);//无法接受到数据
-	length = socket.ReceiveFrom(data, sizeof(data), m_Ip, m_Port, 0);
-	if (length != SOCKET_ERROR)
+	int length;
+	while (1)
 	{
-		data[length] = '\0';//避免后面收到的数据造成影响
-		CString List(data);
-		int index = List.Find(L",");
-		while (index != -1)
+		Sleep(1);
+		length = socket.ReceiveFrom(data, sizeof(data), m_Ip, m_Port, 0);
+		//while (length == SOCKET_ERROR)
+		//	socket.ReceiveFrom(data, sizeof(data), m_Ip, m_Port, 0);
+		if (length != SOCKET_ERROR)
 		{
-			m_FileList.AddString(List.Left(index));
-			List = List.Right(List.GetLength() - index - 1);
-			index = List.Find(L",");
+			data[length] = '\0';
+			CString List(data);
+			int index = List.Find(L",");
+			while (index != -1)
+			{
+				m_FileList.AddString(List.Left(index));
+				List = List.Right(List.GetLength() - index - 1);
+				index = List.Find(L",");
+			}
+			m_FileList.AddString(List);
+			break;
 		}
-		m_FileList.AddString(List);
 	}
 }
 
@@ -290,48 +298,50 @@ void Cftp_clientDlg::OnBnClickedDownload()
 	//获取被选中的文件名称
 	m_FileList.GetText(m_FileList.GetCurSel(), filename);
 
-	//CString filepath = L"Download\\" + filename;
 	//弹出另存为对话框
 	CFileDialog File(FALSE, NULL, filename, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
 		_T("所有文件(*.*)|*.*|"), this);
+
 	if (File.DoModal() == IDOK)
 	{
 		filename = File.GetFileName();
 		filepath = File.GetPathName();
 	}
+	else return;
 
-	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);
 	USES_CONVERSION;
-	filename = L"DOWNLOAD:" + filename;
+	filename = L"DOWNLOAD " + filename;
 	msg = T2A(filename);
+	//告知服务器自己需要的文件名
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
 
+	file.Open(filepath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary);
+
 	int length, num = 0;
-	packet send;
-	packet recv;
-	send.end = false;
+	packet send, recv;
+
+	//只发送ACK
+	send.length = 3;
+	strcpy_s(send.data, send.length + 1, "ACK");//安全函数
+
 	while (1)
 	{
+		Sleep(1);
 		length = socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
 		if (length != SOCKET_ERROR)
 		{
 			if (recv.end == true)
 				break;
-			else
+			if (recv.number == num)
 			{
-				if (recv.number == num)
-				{
-					recv.data[recv.length] = '\0';
-					file.SeekToEnd();
-					file.Write(recv.data, recv.length);
-					//file.Write(recv.data, strlen(recv.data));
-					num++;
-				}
-				strcpy(send.data, "ACK");
-				send.length = strlen(send.data);
-				send.number = num;
-				socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
+				num++;
+
+				file.Seek(0, CFile::end);
+				file.Write(recv.data, recv.length);
+				//file.Write(recv.data, strlen(recv.data));
 			}
+			send.number = num;
+			socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
 		}
 	}
 	file.Close();
@@ -346,39 +356,89 @@ void Cftp_clientDlg::OnBnClickedUpload()
 	//弹出打开对话框
 	CFileDialog File(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
 		_T("所有文件(*.*)|*.*|"), this);
+
 	if (File.DoModal() == IDOK)
 	{
 		path = File.GetPathName();
 		filename = File.GetFileName();
 	}
+	else return;
 
-	filename = L"UPLOAD:" + filename;
+	filename = L"UPLOAD " + filename;
 	file.Open(path, CFile::modeRead | CFile::typeBinary);
 
 	USES_CONVERSION;
 	msg = T2A(filename);
 	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
-	packet send;
-	packet recv;
+
+	packet send, recv;
 	int length, num = 0;
-	file.SeekToBegin();
+
+	file.Seek(0, CFile::begin);
 	send.length = file.Read(send.data, 1024);
-	send.end = false;
 	while (send.length)
 	{
 		send.number = num;
 		socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
+		Sleep(1);
+
 		length = socket.ReceiveFrom((char*)&recv, sizeof(recv), m_Ip, m_Port, 0);
-		//通过number判断刚发送的数据包是否送达
+
 		if (length != SOCKET_ERROR)
 		{
-			if (recv.number == ++num)
+			//通过number判断刚发送的数据包是否送达
+			if (recv.number == num + 1)
+			{
+				num++;
+
+				memset(send.data, 0, sizeof(send.data));
 				send.length = file.Read(send.data, 1024);
+			}
 		}
 	}
-	//最后一次传输空数据包
 	send.end = true;
+	//发送数据为空，标志结束的数据包
 	socket.SendTo((char*)&send, sizeof(send), m_Port, m_Ip, 0);
 	file.Close();
+
 	AfxMessageBox(L"文件上传成功！", MB_ICONINFORMATION);
+	//GetList();
+	m_FileList.AddString(File.GetFileName());
+}
+
+
+void Cftp_clientDlg::OnBnClickedDelete()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CString filename;
+	//获取被选中的文件名称
+	m_FileList.GetText(m_FileList.GetCurSel(), filename);
+	
+	filename = L"DELETE " + filename;
+	USES_CONVERSION;
+	msg = T2A(filename);
+	socket.SendTo(msg, strlen(msg), m_Port, m_Ip, 0);
+
+	int length;
+	CString temp;
+	while (1)
+	{
+		Sleep(1);
+		length = socket.ReceiveFrom(data, sizeof(data), m_Ip, m_Port, 0);
+
+		if (length != SOCKET_ERROR)
+		{
+			temp = data;
+			if (temp.Left(24) = "230 Delete successfully")
+			{
+				AfxMessageBox(L"文件删除成功！", MB_ICONINFORMATION);
+				m_FileList.DeleteString(m_FileList.GetCurSel());
+			}
+			else
+				AfxMessageBox(L"文件删除失败！", MB_ICONSTOP);
+			break;
+		}
+	}
+	//GetList();
+
 }

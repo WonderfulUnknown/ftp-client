@@ -50,4 +50,5 @@ public:
 	afx_msg void OnBnClickedConnect();
 	afx_msg void OnBnClickedDownload();
 	afx_msg void OnBnClickedUpload();
+	afx_msg void OnBnClickedDelete();
 };

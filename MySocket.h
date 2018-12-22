@@ -24,10 +24,14 @@ public:
 };
 
 //接受文件时的数据结构
-struct packet
+class packet
 {
-	char data[2048];//数据
-	int number;//包的号码
+public:
+	packet::packet();
+	packet::~packet();
+
+	char data[1024];//数据
+	int number;//数据包的号码
 	int length;//数据长度
 	bool end;//代表结束的数据包
 };
